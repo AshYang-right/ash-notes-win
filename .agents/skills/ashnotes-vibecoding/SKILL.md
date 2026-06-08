@@ -1,0 +1,41 @@
+# AshNotes Vibecoding Skill
+
+Use this skill when developing AshNotes features, refactors, UI changes, storage changes, or project documentation.
+
+## Goal
+
+Help AshNotes evolve without losing the original product feel: a small, reliable, local-first Windows sticky-note todo app.
+
+## Workflow
+
+1. Read `AGENTS.md`.
+2. Read `.agents/rules/onboarding.md` when setup, commands, or verification are involved.
+3. Read `.agents/rules/engineering.md`.
+4. Check `docs/INDEX.md` and the relevant `docs/dev-log/` entries.
+5. Inspect the files touched by the request before editing.
+6. Make the smallest coherent change that satisfies the request.
+7. Run the verification command that matches the changed surface.
+8. Add or update a dev-log entry when the change creates a durable decision.
+
+## Current Architecture
+
+- `src/App.tsx`: React task UI, Tauri invoke calls, window-state save wiring.
+- `src/App.css`: sticky-note visual system and compact desktop layout.
+- `src-tauri/src/lib.rs`: SQLite setup, task commands, window-state persistence.
+- `src-tauri/tauri.conf.json`: Tauri app metadata and main window sizing.
+
+## Command Reference
+
+- Frontend check: `npm.cmd run build`
+- Full project check: `npm.cmd run check`
+- Environment doctor: `npm.cmd run doctor`
+- Desktop dev run: `npm.cmd run tauri dev`
+- Rust check: `cargo check` from `src-tauri/`
+- Release compile check: `npm.cmd run tauri -- build --no-bundle`
+
+## Decision Heuristics
+
+- If a feature makes capture faster or persistence more trustworthy, it likely fits.
+- If a feature makes the app feel like a dashboard, project manager, or synced workspace, it needs an explicit product decision first.
+- If a change touches persistence, prefer a migration-minded shape even before a formal migration system exists.
+- If the app surface gets more complex, protect the compact note feel first.

@@ -4,8 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/bootstrap.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "check": "node scripts/check-project.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
+    "agent:check": "node scripts/check-agent-context.mjs",
+    "app:dev": "tauri dev",
+    "app:build": "tauri build --no-bundle",
     "preview": "vite preview",
     "tauri": "tauri"
   },

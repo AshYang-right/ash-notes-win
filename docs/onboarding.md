@@ -37,6 +37,14 @@ npm.cmd run doctor
 - Frontend build only: `npm.cmd run build`
 - Tauri release compile check: `npm.cmd run app:build`
 
+## Development Loop
+
+1. Write: decide whether the change touches frontend UI, Tauri/Rust commands, SQLite/analytics, docs, or agent context.
+2. Compile: run `npm.cmd run build` for frontend changes; also run `cargo check` from `src-tauri/` for Tauri, SQLite, analytics, or Rust command changes.
+3. Run: use `npm.cmd run app:dev` to launch the desktop app. If a build succeeds while AshNotes is already open, restart only after confirming that no live draft text or inline edit will be lost.
+4. Test: run `npm.cmd run check` before publishing when prerequisites are available. If it stops because Rust/Cargo is missing, run `npm.cmd run doctor` and record the missing prerequisite plus any narrower checks that passed.
+5. Context: run `npm.cmd run agent:check` after changing `AGENTS.md`, `.agents/`, durable docs, or workflow guidance.
+
 ## Codex Start
 
 When using Codex, start by reading:

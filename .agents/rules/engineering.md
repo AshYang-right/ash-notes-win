@@ -39,8 +39,11 @@
 
 ## Verification Rules
 
+- Classify the changed surface before choosing checks: frontend, Rust/Tauri, SQLite/analytics, docs/agent context, or release behavior.
 - For setup or workflow changes, run `npm.cmd run doctor` and `npm.cmd run agent:check`.
 - For frontend-only changes, run `npm.cmd run build`.
 - For Tauri command, SQLite, config, or Rust changes, also run `cargo check` from `src-tauri/`.
 - For analytics changes, verify event names, required metadata, and source-of-truth queries against `.agents/rules/user-data-analytics.md`.
 - For release-facing changes, run `npm.cmd run tauri -- build --no-bundle` when feasible.
+- Use `npm.cmd run check` as the standard pre-publish verification path. If it fails because Rust/Cargo or another prerequisite is missing, report the blocker and the narrower checks that passed.
+- After a successful compile/build during active development, check whether the AshNotes desktop app is already running. Restart it to load the new build only when the user has explicitly authorized that restart in the current conversation; otherwise report that a restart is available. Do not silently close a live note window because draft input and in-progress inline edits may only exist in frontend state.

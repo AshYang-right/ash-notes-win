@@ -20,6 +20,11 @@ Use this directory as the maintainable context layer for Codex and other coding 
 - `../docs/dev-log/2026-06-08-ai-context-maintenance.md`: implementation log for the AI context maintenance system.
 - `../docs/dev-log/2026-06-08-zero-friction-onboarding.md`: implementation log for onboarding automation.
 - `../docs/dev-log/2026-06-08-user-data-analytics-and-stats-window.md`: implementation log for the analytics ledger and stats heatmap.
+- `../docs/dev-log/2026-06-09-inline-task-title-editing.md`: implementation log for double-click task title editing and analytics.
+- `../docs/dev-log/2026-06-09-running-app-restart-rule.md`: implementation log for the post-build live app restart rule.
+- `../docs/dev-log/2026-06-09-completed-task-reorder-animation.md`: implementation log for completed-task tail ordering and FLIP animation.
+- `../docs/dev-log/2026-06-09-same-day-reversible-completion-stats.md`: implementation log for same-day reversible completion stats.
+- `../docs/dev-log/2026-06-09-development-verification-workflow.md`: implementation log for the write, compile, run, test workflow.
 - `../docs/decisions/0001-ai-context-maintenance.md`: decision record for maintaining prompt engineering as project infrastructure.
 - `../docs/decisions/0002-zero-friction-onboarding.md`: decision record for clone-and-work development.
 - `../docs/decisions/0003-user-data-analytics.md`: decision record for local analytics and sub-agent analytics review.

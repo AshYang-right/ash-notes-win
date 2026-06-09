@@ -8,6 +8,7 @@ Use this directory as the maintainable context layer for Codex and other coding 
 - `rules/engineering.md`: durable engineering rules for AshNotes.
 - `rules/onboarding.md`: clone-and-work onboarding rules.
 - `rules/prompt-engineering-maintenance.md`: how every developer keeps agent context current.
+- `rules/user-data-analytics.md`: mandatory local analytics and sub-agent review rules.
 - `skills/ashnotes-vibecoding/SKILL.md`: project skill for vibecoding sessions.
 - `skills/zero-friction-onboarding/SKILL.md`: workflow for setup, verification, and onboarding changes.
 - `templates/dev-log.md`: reusable development log shape.
@@ -18,8 +19,10 @@ Use this directory as the maintainable context layer for Codex and other coding 
 - `../docs/dev-log/2026-06-08-first-version-plan.md`: origin plan and first implementation snapshot.
 - `../docs/dev-log/2026-06-08-ai-context-maintenance.md`: implementation log for the AI context maintenance system.
 - `../docs/dev-log/2026-06-08-zero-friction-onboarding.md`: implementation log for onboarding automation.
+- `../docs/dev-log/2026-06-08-user-data-analytics-and-stats-window.md`: implementation log for the analytics ledger and stats heatmap.
 - `../docs/decisions/0001-ai-context-maintenance.md`: decision record for maintaining prompt engineering as project infrastructure.
 - `../docs/decisions/0002-zero-friction-onboarding.md`: decision record for clone-and-work development.
+- `../docs/decisions/0003-user-data-analytics.md`: decision record for local analytics and sub-agent analytics review.
 - `../.github/pull_request_template.md`: PR checklist with context-delta prompts.
 - `../scripts/check-agent-context.mjs`: structural check for this context layer.
 - `../scripts/doctor.mjs`: local prerequisite diagnostics.
@@ -31,10 +34,11 @@ Use this directory as the maintainable context layer for Codex and other coding 
 1. Read `AGENTS.md` for project shape, commands, and maintenance expectations.
 2. Read `rules/onboarding.md` before changing setup, commands, prerequisites, or verification.
 3. Read `rules/engineering.md` before touching architecture, storage, or UI behavior.
-4. Read `rules/prompt-engineering-maintenance.md` before changing project rules, skills, docs, or workflows.
-5. Use `skills/ashnotes-vibecoding/SKILL.md` when planning or implementing AshNotes features.
-6. Use `skills/zero-friction-onboarding/SKILL.md` when changing setup or contributor workflow.
-7. Check `docs/dev-log/` and `docs/decisions/` for prior decisions before changing product direction.
+4. Read `rules/user-data-analytics.md` before planning or implementing features, interactions, state transitions, or commands.
+5. Read `rules/prompt-engineering-maintenance.md` before changing project rules, skills, docs, or workflows.
+6. Use `skills/ashnotes-vibecoding/SKILL.md` when planning or implementing AshNotes features.
+7. Use `skills/zero-friction-onboarding/SKILL.md` when changing setup or contributor workflow.
+8. Check `docs/dev-log/` and `docs/decisions/` for prior decisions before changing product direction.
 
 ## Maintenance Rule
 

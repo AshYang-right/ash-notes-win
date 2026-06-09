@@ -11,11 +11,13 @@ Help AshNotes evolve without losing the original product feel: a small, reliable
 1. Read `AGENTS.md`.
 2. Read `.agents/rules/onboarding.md` when setup, commands, or verification are involved.
 3. Read `.agents/rules/engineering.md`.
-4. Check `docs/INDEX.md` and the relevant `docs/dev-log/` entries.
-5. Inspect the files touched by the request before editing.
-6. Make the smallest coherent change that satisfies the request.
-7. Run the verification command that matches the changed surface.
-8. Add or update a dev-log entry when the change creates a durable decision.
+4. Read `.agents/rules/user-data-analytics.md` before feature, interaction, state, storage, or command changes.
+5. Spawn a sub-agent for user data analytics review when the change adds or alters product behavior.
+6. Check `docs/INDEX.md` and the relevant `docs/dev-log/` entries.
+7. Inspect the files touched by the request before editing.
+8. Make the smallest coherent change that satisfies the request.
+9. Run the verification command that matches the changed surface.
+10. Add or update a dev-log entry when the change creates a durable decision.
 
 ## Current Architecture
 
@@ -38,4 +40,5 @@ Help AshNotes evolve without losing the original product feel: a small, reliable
 - If a feature makes capture faster or persistence more trustworthy, it likely fits.
 - If a feature makes the app feel like a dashboard, project manager, or synced workspace, it needs an explicit product decision first.
 - If a change touches persistence, prefer a migration-minded shape even before a formal migration system exists.
+- If a change affects user behavior or state transitions, analytics events are required unless the sub-agent review explicitly says no new event is needed.
 - If the app surface gets more complex, protect the compact note feel first.

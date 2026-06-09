@@ -23,10 +23,12 @@
 ## Backend Rules
 
 - SQLite is the source of truth for tasks and window state.
+- SQLite `user_events` is the source of truth for durable user behavior analytics.
 - Keep database access in `src-tauri/src/lib.rs` until the backend grows enough to justify modules.
 - Use parameterized SQL through `rusqlite`.
 - Validate task titles on both frontend and backend boundaries.
 - Keep Tauri command names stable unless all frontend invoke calls and docs are updated together.
+- Write task lifecycle analytics in the same transaction as the task mutation.
 
 ## Documentation Rules
 
@@ -40,4 +42,5 @@
 - For setup or workflow changes, run `npm.cmd run doctor` and `npm.cmd run agent:check`.
 - For frontend-only changes, run `npm.cmd run build`.
 - For Tauri command, SQLite, config, or Rust changes, also run `cargo check` from `src-tauri/`.
+- For analytics changes, verify event names, required metadata, and source-of-truth queries against `.agents/rules/user-data-analytics.md`.
 - For release-facing changes, run `npm.cmd run tauri -- build --no-bundle` when feasible.

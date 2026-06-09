@@ -30,3 +30,11 @@ Update onboarding assets when a change:
 Prefer one memorable command over several manual steps. If a setup task can be automated safely, put it behind `npm.cmd run setup` or `npm.cmd run check`.
 
 If something cannot be automated, document the exact failure symptom and the shortest fix in `docs/onboarding.md`.
+
+## Standard Development Loop
+
+- Write: classify the touched surface before editing so the right verification path is obvious.
+- Compile: use `npm.cmd run build` for frontend changes and add `cargo check` from `src-tauri/` for Rust, Tauri commands, SQLite, or analytics changes.
+- Run: use `npm.cmd run app:dev` for the desktop app; restart an already-running app only with explicit current-session authorization.
+- Test: use `npm.cmd run check` before publishing when prerequisites are installed. If a prerequisite is missing, keep the failure actionable by naming the missing tool and the checks that already passed.
+- Context: use `npm.cmd run agent:check` after changing prompt-engineering files, durable docs, or workflow guidance.

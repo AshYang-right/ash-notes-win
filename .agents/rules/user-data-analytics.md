@@ -14,7 +14,7 @@ AshNotes treats local user behavior data as product infrastructure. Missing dura
 
 Every new feature, changed interaction, state transition, storage change, or command must include a user data analytics review before implementation.
 
-The review must be performed by a sub-agent when sub-agent tooling is available for the session. The review output must answer:
+The review must be performed by a sub-agent when sub-agent tooling is available. The review output must answer:
 
 - What user action or system outcome is being measured.
 - What state transition occurs, if any.
@@ -36,7 +36,7 @@ If no new event is needed, record that conclusion with the reason. A feature wit
 
 ## Current Required Events
 
-- Task lifecycle: `task_created`, `task_completed`, `task_uncompleted`, `task_deleted`.
-- Task UI: `task_draft_focused`, `task_draft_changed`, `task_create_submitted`, `task_checkbox_clicked`, `task_context_menu_opened`, `task_delete_clicked`.
+- Task lifecycle: `task_created`, `task_completed`, `task_uncompleted`, `task_title_updated`, `task_deleted`.
+- Task UI: `task_draft_focused`, `task_draft_changed`, `task_create_submitted`, `task_checkbox_clicked`, `task_title_edit_started`, `task_title_edit_submitted`, `task_title_edit_cancelled`, `task_title_edit_failed`, `task_context_menu_opened`, `task_delete_clicked`.
 - Stats UI: `stats_entry_clicked`, `stats_window_opened`, `stats_window_focused`, `stats_window_closed`, `stats_heatmap_viewed`, `stats_heatmap_day_hovered`, `stats_heatmap_day_selected`.
 - Failure outcomes should use explicit failure events or `success: false` metadata where useful for diagnosis.

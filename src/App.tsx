@@ -1,4 +1,11 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -29,10 +36,42 @@ type HeatmapDay = {
 };
 
 const HEATMAP_DAYS = 90;
+const COMPLETION_STATS_METRIC = "effective_completed_tasks_count";
+const TASK_REORDER_ANIMATION_MS = 280;
+const TASK_REORDER_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SESSION_ID = `session-${Date.now().toString(36)}-${Math.random()
   .toString(36)
   .slice(2)}`;
 const currentWindow = getCurrentWindow();
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function compareTasksForDisplay(left: Task, right: Task) {
+  if (left.completed !== right.completed) {
+    return Number(left.completed) - Number(right.completed);
+  }
+
+  if (left.completed) {
+    const leftCompletedAt = left.completed_at ?? left.updated_at;
+    const rightCompletedAt = right.completed_at ?? right.updated_at;
+
+    if (leftCompletedAt !== rightCompletedAt) {
+      return leftCompletedAt - rightCompletedAt;
+    }
+  }
+
+  if (left.created_at !== right.created_at) {
+    return right.created_at - left.created_at;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function orderTasksForDisplay(tasks: Task[]) {
+  return [...tasks].sort(compareTasksForDisplay);
+}
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -251,6 +290,8 @@ function Titlebar({
 function TaskWindow() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [draft, setDraft] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [taskMenu, setTaskMenu] = useState<{
@@ -258,8 +299,15 @@ function TaskWindow() {
     x: number;
     y: number;
   } | null>(null);
+  const editInputRef = useRef<HTMLInputElement | null>(null);
+  const ignoreNextEditBlur = useRef(false);
+  const taskItemRefs = useRef(new Map<string, HTMLElement>());
+  const previousTaskRects = useRef(new Map<string, DOMRect>());
+  const shouldAnimateTaskList = useRef(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const draftEventTimer = useRef<number | undefined>(undefined);
+  const taskToggleQueues = useRef(new Map<string, Promise<void>>());
+  const latestTaskCompletionIntent = useRef(new Map<string, boolean>());
   const hasRecordedInitialOpen = useRef(false);
 
   const openCount = useMemo(
@@ -319,6 +367,46 @@ function TaskWindow() {
   }, [taskMenu]);
 
   useEffect(() => {
+    if (!editingTaskId) return;
+
+    editInputRef.current?.focus();
+    editInputRef.current?.select();
+  }, [editingTaskId]);
+
+  useLayoutEffect(() => {
+    if (!shouldAnimateTaskList.current) return;
+
+    shouldAnimateTaskList.current = false;
+    const previousRects = previousTaskRects.current;
+    previousTaskRects.current = new Map();
+
+    if (prefersReducedMotion()) return;
+
+    taskItemRefs.current.forEach((element, taskId) => {
+      const previousRect = previousRects.get(taskId);
+      if (!previousRect) return;
+
+      const currentRect = element.getBoundingClientRect();
+      const deltaX = previousRect.left - currentRect.left;
+      const deltaY = previousRect.top - currentRect.top;
+
+      if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return;
+
+      element.getAnimations().forEach((animation) => animation.cancel());
+      element.animate(
+        [
+          { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
+          { transform: "translate3d(0, 0, 0)" },
+        ],
+        {
+          duration: TASK_REORDER_ANIMATION_MS,
+          easing: TASK_REORDER_EASING,
+        },
+      );
+    });
+  }, [tasks]);
+
+  useEffect(() => {
     let cleanup: Array<() => void> = [];
 
     const persistWindowState = () => {
@@ -363,12 +451,24 @@ function TaskWindow() {
     try {
       setIsLoading(true);
       setError("");
-      setTasks(await invoke<Task[]>("list_tasks"));
+      const loadedTasks = await invoke<Task[]>("list_tasks");
+      setTasks(orderTasksForDisplay(loadedTasks));
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function captureTaskListPositions() {
+    if (prefersReducedMotion()) return;
+
+    const rects = new Map<string, DOMRect>();
+    taskItemRefs.current.forEach((element, taskId) => {
+      rects.set(taskId, element.getBoundingClientRect());
+    });
+    previousTaskRects.current = rects;
+    shouldAnimateTaskList.current = true;
   }
 
   async function openStatsWindow() {
@@ -536,7 +636,8 @@ function TaskWindow() {
   }
 
   async function setTaskCompleted(task: Task, completed: boolean) {
-    await recordAnalyticsEvent(
+    latestTaskCompletionIntent.current.set(task.id, completed);
+    void recordAnalyticsEvent(
       "task_checkbox_clicked",
       {
         screen: "task_window",
@@ -552,13 +653,178 @@ function TaskWindow() {
       { entityType: "task", entityId: task.id },
     );
 
+    const changedAt = Date.now();
+    const optimisticTask = {
+      ...task,
+      completed,
+      updated_at: changedAt,
+      completed_at: completed ? changedAt : null,
+    };
+
+    captureTaskListPositions();
+    setTasks((currentTasks) =>
+      orderTasksForDisplay(
+        currentTasks.map((currentTask) =>
+          currentTask.id === task.id ? optimisticTask : currentTask,
+        ),
+      ),
+    );
+
+    const previousToggle = taskToggleQueues.current.get(task.id) ?? Promise.resolve();
+    const toggleOperation = previousToggle
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          setError("");
+          const updatedTask = await invoke<Task>("set_task_completed", {
+            id: task.id,
+            completed,
+            sourceWindow: "main",
+            trigger: "checkbox",
+            sessionId: SESSION_ID,
+          });
+
+          if (latestTaskCompletionIntent.current.get(task.id) !== updatedTask.completed) {
+            return;
+          }
+
+          setTasks((currentTasks) =>
+            orderTasksForDisplay(
+              currentTasks.map((currentTask) =>
+                currentTask.id === task.id ? updatedTask : currentTask,
+              ),
+            ),
+          );
+        } catch (updateError) {
+          if (latestTaskCompletionIntent.current.get(task.id) !== completed) {
+            return;
+          }
+
+          setError(errorMessage(updateError));
+          captureTaskListPositions();
+          setTasks((currentTasks) =>
+            orderTasksForDisplay(
+              currentTasks.map((currentTask) =>
+                currentTask.id === task.id ? task : currentTask,
+              ),
+            ),
+          );
+          await recordAnalyticsEvent(
+            "task_checkbox_toggle_failed",
+            {
+              screen: "task_window",
+              ui_target: "task_checkbox",
+              ui_action: "toggle",
+              task_id: task.id,
+              previous_completed: task.completed,
+              next_completed: completed,
+              success: false,
+              error_code: errorMessage(updateError),
+            },
+            { entityType: "task", entityId: task.id },
+          );
+        }
+      });
+
+    taskToggleQueues.current.set(task.id, toggleOperation);
+    void toggleOperation.finally(() => {
+      if (taskToggleQueues.current.get(task.id) === toggleOperation) {
+        taskToggleQueues.current.delete(task.id);
+      }
+    });
+  }
+
+  async function startEditingTask(task: Task) {
+    ignoreNextEditBlur.current = false;
+    setTaskMenu(null);
+    setEditingTaskId(task.id);
+    setEditingTitle(task.title);
+
+    await recordAnalyticsEvent(
+      "task_title_edit_started",
+      {
+        screen: "task_window",
+        ui_target: "task_title",
+        ui_action: "edit_start",
+        input_method: "double_click",
+        task_id: task.id,
+        task_title_snapshot: task.title,
+        title_length: task.title.length,
+        was_completed: task.completed,
+      },
+      { entityType: "task", entityId: task.id },
+    );
+  }
+
+  async function cancelEditingTask(task: Task, inputMethod: string) {
+    ignoreNextEditBlur.current = true;
+    setEditingTaskId(null);
+    setEditingTitle("");
+
+    await recordAnalyticsEvent(
+      "task_title_edit_cancelled",
+      {
+        screen: "task_window",
+        ui_target: "task_title",
+        ui_action: "edit_cancel",
+        input_method: inputMethod,
+        task_id: task.id,
+        task_title_snapshot: task.title,
+        title_length: task.title.length,
+        attempted_title_length: editingTitle.length,
+        attempted_trimmed_length: editingTitle.trim().length,
+        was_completed: task.completed,
+      },
+      { entityType: "task", entityId: task.id },
+    );
+  }
+
+  async function submitTaskTitleEdit(task: Task, inputMethod: string) {
+    const title = editingTitle.trim();
+    const changed = title !== task.title;
+    const isEmpty = title.length === 0;
+
+    await recordAnalyticsEvent(
+      "task_title_edit_submitted",
+      {
+        screen: "task_window",
+        ui_target: "task_title",
+        ui_action: "edit_submit",
+        input_method: inputMethod,
+        task_id: task.id,
+        task_title_snapshot: task.title,
+        title_length: task.title.length,
+        next_title_length: title.length,
+        was_completed: task.completed,
+        changed,
+        success: !isEmpty,
+        error_code: isEmpty ? "empty_title" : null,
+      },
+      { entityType: "task", entityId: task.id },
+    );
+
+    if (isEmpty) {
+      setError("");
+      setEditingTaskId(null);
+      setEditingTitle("");
+      return;
+    }
+
+    setError("");
+
+    if (!changed) {
+      setEditingTaskId(null);
+      setEditingTitle("");
+      return;
+    }
+
     try {
       setError("");
-      const updatedTask = await invoke<Task>("set_task_completed", {
+      const updatedTask = await invoke<Task>("update_task_title", {
         id: task.id,
-        completed,
+        title,
         sourceWindow: "main",
-        trigger: "checkbox",
+        trigger: inputMethod,
         sessionId: SESSION_ID,
       });
 
@@ -567,17 +833,21 @@ function TaskWindow() {
           currentTask.id === task.id ? updatedTask : currentTask,
         ),
       );
+      setEditingTaskId(null);
+      setEditingTitle("");
     } catch (updateError) {
       setError(errorMessage(updateError));
       await recordAnalyticsEvent(
-        "task_checkbox_toggle_failed",
+        "task_title_edit_failed",
         {
           screen: "task_window",
-          ui_target: "task_checkbox",
-          ui_action: "toggle",
+          ui_target: "task_title",
+          ui_action: "edit_submit",
+          input_method: inputMethod,
           task_id: task.id,
-          previous_completed: task.completed,
-          next_completed: completed,
+          task_title_snapshot: task.title,
+          title_length: task.title.length,
+          next_title_length: title.length,
           success: false,
           error_code: errorMessage(updateError),
         },
@@ -588,6 +858,7 @@ function TaskWindow() {
 
   async function deleteTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
+    latestTaskCompletionIntent.current.delete(taskId);
 
     await recordAnalyticsEvent(
       "task_delete_clicked",
@@ -675,6 +946,13 @@ function TaskWindow() {
             <article
               className={`task-item ${task.completed ? "completed" : ""}`}
               key={task.id}
+              ref={(element) => {
+                if (element) {
+                  taskItemRefs.current.set(task.id, element);
+                } else {
+                  taskItemRefs.current.delete(task.id);
+                }
+              }}
               title="Right-click to delete"
               onContextMenu={(event) => {
                 event.preventDefault();
@@ -715,7 +993,43 @@ function TaskWindow() {
                 />
                 <span aria-hidden="true" />
               </label>
-              <span className="task-title">{task.title}</span>
+              {editingTaskId === task.id ? (
+                <input
+                  ref={editInputRef}
+                  className="task-title-edit"
+                  value={editingTitle}
+                  aria-label="Edit task"
+                  onChange={(event) => setEditingTitle(event.currentTarget.value)}
+                  onBlur={() => {
+                    if (ignoreNextEditBlur.current) {
+                      ignoreNextEditBlur.current = false;
+                      return;
+                    }
+
+                    void submitTaskTitleEdit(task, "blur");
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      ignoreNextEditBlur.current = true;
+                      void submitTaskTitleEdit(task, "enter_key");
+                    }
+
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      void cancelEditingTask(task, "escape_key");
+                    }
+                  }}
+                />
+              ) : (
+                <span
+                  className="task-title"
+                  title="Double-click to edit"
+                  onDoubleClick={() => void startEditingTask(task)}
+                >
+                  {task.title}
+                </span>
+              )}
               <time
                 className="task-created"
                 dateTime={new Date(task.created_at).toISOString()}
@@ -884,7 +1198,7 @@ function StatsWindow() {
         range_start_day: startDate,
         range_end_day: endDate,
         days: HEATMAP_DAYS,
-        metric: "task_completed_events_count",
+        metric: COMPLETION_STATS_METRIC,
         nonzero_days: nextDays.filter((day) => day.completedCount > 0).length,
         total_completed: nextDays.reduce(
           (total, day) => total + day.completedCount,
@@ -938,7 +1252,7 @@ function StatsWindow() {
       ui_action: "select",
       selected_day: day.key,
       completed_count: day.completedCount,
-      metric: "task_completed_events_count",
+      metric: COMPLETION_STATS_METRIC,
     });
   }
 
@@ -952,7 +1266,7 @@ function StatsWindow() {
       ui_action: "hover",
       hovered_day: day.key,
       completed_count: day.completedCount,
-      metric: "task_completed_events_count",
+      metric: COMPLETION_STATS_METRIC,
     });
   }
 
@@ -964,7 +1278,7 @@ function StatsWindow() {
         <aside className="stats-sidebar">
           <div className="stats-kicker">Last {HEATMAP_DAYS} days</div>
           <h1 className="stats-title">{totalCompleted}</h1>
-          <div className="stats-subtitle">completed events</div>
+          <div className="stats-subtitle">effective completions</div>
 
           <div className="stats-metrics" aria-label="Stats summary">
             <div className="stats-metric">
@@ -1022,8 +1336,8 @@ function StatsWindow() {
                     key={day.key}
                     type="button"
                     role="gridcell"
-                    aria-label={`${day.key}: ${day.completedCount} completed events`}
-                    title={`${day.key}: ${day.completedCount} completed events`}
+                    aria-label={`${day.key}: ${day.completedCount} effective completions`}
+                    title={`${day.key}: ${day.completedCount} effective completions`}
                     onClick={() => selectDay(day)}
                     onMouseEnter={() => recordDayHover(day)}
                   />

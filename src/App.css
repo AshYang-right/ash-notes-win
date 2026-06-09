@@ -208,6 +208,13 @@ button {
   border: 1px solid rgba(81, 76, 38, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 242, 0.58);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-item {
+    will-change: auto;
+  }
 }
 
 .task-check {
@@ -249,6 +256,21 @@ button {
   min-width: 0;
   overflow-wrap: anywhere;
   color: #293229;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.task-title-edit {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 3px 7px;
+  color: #293229;
+  border: 1px solid rgba(47, 158, 143, 0.58);
+  border-radius: 6px;
+  outline: none;
+  background: rgba(255, 255, 247, 0.9);
+  box-shadow: 0 0 0 3px rgba(47, 158, 143, 0.13);
   font-size: 14px;
   line-height: 20px;
 }

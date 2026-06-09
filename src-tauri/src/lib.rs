@@ -307,6 +307,36 @@ fn insert_user_event(
     )
 }
 
+fn task_completion_metadata(
+    task: &Task,
+    previous_task: Option<&Task>,
+    source_window: &str,
+    trigger: &str,
+    session_id: Option<&str>,
+) -> Value {
+    enrich_metadata(
+        json!({
+            "event_source": "task_command",
+            "ui_action": "set_task_completed",
+            "input_method": trigger,
+            "task_id": &task.id,
+            "task_title_snapshot": &task.title,
+            "title_length": task.title.chars().count(),
+            "previous_completed": previous_task.map(|task| task.completed),
+            "next_completed": task.completed,
+            "task_created_at": task.created_at,
+            "previous_task_updated_at": previous_task.map(|task| task.updated_at),
+            "task_updated_at": task.updated_at,
+            "previous_completed_at": previous_task.and_then(|task| task.completed_at),
+            "completed_at": task.completed_at,
+            "success": true,
+        }),
+        "rust_command",
+        source_window,
+        session_id,
+    )
+}
+
 fn backfill_legacy_task_events(connection: &Connection) -> Result<(), String> {
     let already_applied = connection
         .query_row(
@@ -517,7 +547,11 @@ fn list_tasks(state: State<'_, AppState>) -> Result<Vec<Task>, String> {
             "
             SELECT id, title, completed, created_at, updated_at, completed_at
             FROM tasks
-            ORDER BY completed ASC, created_at DESC
+            ORDER BY
+                completed ASC,
+                CASE WHEN completed = 0 THEN created_at END DESC,
+                CASE WHEN completed = 1 THEN COALESCE(completed_at, updated_at) END ASC,
+                created_at DESC
             ",
         )
         .map_err(|error| error.to_string())?;
@@ -678,20 +712,102 @@ fn set_task_completed(
     } else {
         "task_uncompleted"
     };
+    let metadata = task_completion_metadata(
+        &updated_task,
+        Some(&current_task),
+        &source_window,
+        &trigger,
+        session_id.as_deref(),
+    );
+
+    insert_user_event(
+        &transaction,
+        event_type,
+        updated_at,
+        &source_window,
+        Some("task"),
+        Some(&updated_task.id),
+        &metadata,
+    )?;
+
+    transaction.commit().map_err(|error| error.to_string())?;
+
+    Ok(updated_task)
+}
+
+#[tauri::command]
+fn update_task_title(
+    id: String,
+    title: String,
+    source_window: Option<String>,
+    trigger: Option<String>,
+    session_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Task, String> {
+    let clean_title = title.trim();
+
+    if clean_title.is_empty() {
+        return Err("Task title cannot be empty.".to_string());
+    }
+
+    let source_window = clean_or_default(source_window, "main");
+    let trigger = clean_or_default(trigger, "unknown");
+    let mut connection = connect(&state.db_path)?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+
+    let current_task = transaction
+        .query_row(
+            "
+            SELECT id, title, completed, created_at, updated_at, completed_at
+            FROM tasks
+            WHERE id = ?1
+            ",
+            params![&id],
+            row_to_task,
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Task not found.".to_string())?;
+
+    if current_task.title == clean_title {
+        return Ok(current_task);
+    }
+
+    let updated_at = now_ms();
+    let updated_task = Task {
+        title: clean_title.to_string(),
+        updated_at,
+        ..current_task.clone()
+    };
+
+    transaction
+        .execute(
+            "
+            UPDATE tasks
+            SET title = ?1, updated_at = ?2
+            WHERE id = ?3
+            ",
+            params![&updated_task.title, updated_task.updated_at, &updated_task.id],
+        )
+        .map_err(|error| error.to_string())?;
+
     let metadata = enrich_metadata(
         json!({
             "event_source": "task_command",
-            "ui_action": "set_task_completed",
+            "ui_action": "update_task_title",
             "input_method": trigger,
             "task_id": &updated_task.id,
             "task_title_snapshot": &updated_task.title,
+            "previous_task_title_snapshot": &current_task.title,
+            "previous_title_length": current_task.title.chars().count(),
             "title_length": updated_task.title.chars().count(),
             "previous_completed": current_task.completed,
             "next_completed": updated_task.completed,
             "task_created_at": updated_task.created_at,
             "previous_task_updated_at": current_task.updated_at,
             "task_updated_at": updated_task.updated_at,
-            "previous_completed_at": current_task.completed_at,
             "completed_at": updated_task.completed_at,
             "success": true,
         }),
@@ -702,7 +818,7 @@ fn set_task_completed(
 
     insert_user_event(
         &transaction,
-        event_type,
+        "task_title_updated",
         updated_at,
         &source_window,
         Some("task"),
@@ -833,13 +949,22 @@ fn list_completion_day_stats(
     let mut statement = connection
         .prepare(
             "
-            SELECT local_day, COUNT(*)
-            FROM user_events
-            WHERE event_type = 'task_completed'
-                AND local_day >= ?1
-                AND local_day <= ?2
-            GROUP BY local_day
-            ORDER BY local_day ASC
+            SELECT completed_events.local_day, COUNT(DISTINCT completed_events.entity_id)
+            FROM user_events AS completed_events
+            WHERE completed_events.event_type = 'task_completed'
+                AND completed_events.local_day >= ?1
+                AND completed_events.local_day <= ?2
+                AND completed_events.entity_type = 'task'
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM user_events AS uncompleted_events
+                    WHERE uncompleted_events.event_type = 'task_uncompleted'
+                        AND uncompleted_events.entity_type = 'task'
+                        AND uncompleted_events.entity_id = completed_events.entity_id
+                        AND uncompleted_events.local_day = completed_events.local_day
+                )
+            GROUP BY completed_events.local_day
+            ORDER BY completed_events.local_day ASC
             ",
         )
         .map_err(|error| error.to_string())?;
@@ -957,6 +1082,7 @@ pub fn run() {
             list_tasks,
             create_task,
             set_task_completed,
+            update_task_title,
             delete_task,
             record_user_event,
             list_completion_day_stats,

@@ -17,6 +17,7 @@ This file is the first stop for Codex-style development in AshNotes.
 - Preserve the sticky-note feeling: small surface, fast input, calm visual weight.
 - Keep the first-version promise reliable before expanding scope.
 - Store durable local app data through the Tauri backend, not browser-only storage.
+- Treat local user analytics as product infrastructure: new or changed features need a sub-agent analytics review and durable SQLite events when user behavior or state transitions change.
 - Prefer small, inspectable changes over broad rewrites.
 - Update `docs/onboarding.md` and `.agents/rules/onboarding.md` when setup, prerequisites, commands, or verification workflows change.
 - Update `docs/dev-log/` when a decision changes product direction, persistence, architecture, or release behavior.
@@ -66,6 +67,7 @@ Use `npm.cmd` on Windows to avoid PowerShell execution-policy issues with `npm.p
 - Project docs index: `docs/INDEX.md`
 - Onboarding guide: `docs/onboarding.md`
 - Onboarding rule: `.agents/rules/onboarding.md`
+- User data analytics rule: `.agents/rules/user-data-analytics.md`
 - Onboarding skill: `.agents/skills/zero-friction-onboarding/SKILL.md`
 - Prompt maintenance rule: `.agents/rules/prompt-engineering-maintenance.md`
 - Prompt maintenance decision: `docs/decisions/0001-ai-context-maintenance.md`

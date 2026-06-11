@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{Manager, PhysicalPosition, PhysicalSize, State};
+use tauri::{window::Monitor, Manager, PhysicalPosition, PhysicalSize, State};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -15,6 +15,57 @@ struct AppState {
 }
 
 const EVENT_SCHEMA_VERSION: i64 = 1;
+const EDGE_VISIBLE_STRIP_LOGICAL_PX: f64 = 14.0;
+const EDGE_VISIBLE_STRIP_MIN_PX: i32 = 8;
+
+#[cfg(target_os = "windows")]
+const SM_SWAPBUTTON: i32 = 23;
+#[cfg(target_os = "windows")]
+const VK_LBUTTON: i32 = 0x01;
+#[cfg(target_os = "windows")]
+const VK_RBUTTON: i32 = 0x02;
+
+#[cfg(target_os = "windows")]
+#[link(name = "user32")]
+#[allow(non_snake_case)]
+extern "system" {
+    fn GetAsyncKeyState(v_key: i32) -> i16;
+    fn GetSystemMetrics(n_index: i32) -> i32;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DockEdge {
+    Left,
+    Right,
+    Top,
+}
+
+impl DockEdge {
+    fn as_str(self) -> &'static str {
+        match self {
+            DockEdge::Left => "left",
+            DockEdge::Right => "right",
+            DockEdge::Top => "top",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct WorkArea {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct WindowBounds {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
 
 #[derive(Clone, Debug, Serialize)]
 struct Task {
@@ -62,7 +113,7 @@ struct UserEventInput {
     session_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WindowState {
     #[serde(default)]
@@ -71,6 +122,10 @@ struct WindowState {
     y: i32,
     width: u32,
     height: u32,
+    #[serde(default)]
+    always_on_top: bool,
+    #[serde(default)]
+    dock_edge: Option<String>,
 }
 
 fn now_ms() -> i64 {
@@ -82,6 +137,113 @@ fn now_ms() -> i64 {
 
 fn connect(db_path: &Path) -> Result<Connection, String> {
     Connection::open(db_path).map_err(|error| error.to_string())
+}
+
+fn parse_dock_edge(value: Option<&str>) -> Option<DockEdge> {
+    match value.map(str::trim) {
+        Some("left") => Some(DockEdge::Left),
+        Some("right") => Some(DockEdge::Right),
+        Some("top") => Some(DockEdge::Top),
+        _ => None,
+    }
+}
+
+fn normalize_dock_edge(value: Option<String>) -> Result<Option<String>, String> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+
+    let clean_value = value.trim();
+    if clean_value.is_empty() {
+        return Ok(None);
+    }
+
+    let Some(edge) = parse_dock_edge(Some(clean_value)) else {
+        return Err("dockEdge must be left, right, top, or null.".to_string());
+    };
+
+    Ok(Some(edge.as_str().to_string()))
+}
+
+fn monitor_work_area(monitor: &Monitor) -> WorkArea {
+    let work_area = monitor.work_area();
+
+    WorkArea {
+        x: work_area.position.x,
+        y: work_area.position.y,
+        width: work_area.size.width,
+        height: work_area.size.height,
+        scale_factor: monitor.scale_factor(),
+    }
+}
+
+fn scaled_edge_strip(scale_factor: f64) -> i32 {
+    ((EDGE_VISIBLE_STRIP_LOGICAL_PX * scale_factor).round() as i32).max(EDGE_VISIBLE_STRIP_MIN_PX)
+}
+
+fn axis_end(start: i32, length: u32) -> i32 {
+    (start as i64 + length as i64).clamp(i32::MIN as i64, i32::MAX as i64) as i32
+}
+
+fn clamp_axis(value: i32, length: u32, area_start: i32, area_length: u32) -> i32 {
+    if length >= area_length {
+        return area_start;
+    }
+
+    let max_value = axis_end(area_start, area_length) - length as i32;
+    value.clamp(area_start, max_value)
+}
+
+fn clamp_to_work_area(bounds: WindowBounds, work_area: WorkArea) -> PhysicalPosition<i32> {
+    PhysicalPosition::new(
+        clamp_axis(bounds.x, bounds.width, work_area.x, work_area.width),
+        clamp_axis(bounds.y, bounds.height, work_area.y, work_area.height),
+    )
+}
+
+fn dock_expanded_position(
+    edge: DockEdge,
+    bounds: WindowBounds,
+    work_area: WorkArea,
+) -> PhysicalPosition<i32> {
+    match edge {
+        DockEdge::Left => PhysicalPosition::new(
+            work_area.x,
+            clamp_axis(bounds.y, bounds.height, work_area.y, work_area.height),
+        ),
+        DockEdge::Right => PhysicalPosition::new(
+            axis_end(work_area.x, work_area.width) - bounds.width as i32,
+            clamp_axis(bounds.y, bounds.height, work_area.y, work_area.height),
+        ),
+        DockEdge::Top => PhysicalPosition::new(
+            clamp_axis(bounds.x, bounds.width, work_area.x, work_area.width),
+            work_area.y,
+        ),
+    }
+}
+
+fn dock_collapsed_position(
+    edge: DockEdge,
+    expanded_position: PhysicalPosition<i32>,
+    bounds: WindowBounds,
+    work_area: WorkArea,
+) -> PhysicalPosition<i32> {
+    let strip = scaled_edge_strip(work_area.scale_factor);
+
+    match edge {
+        DockEdge::Left => PhysicalPosition::new(
+            work_area.x - bounds.width as i32 + strip,
+            expanded_position.y,
+        ),
+        DockEdge::Right => PhysicalPosition::new(
+            axis_end(work_area.x, work_area.width) - strip,
+            expanded_position.y,
+        ),
+        DockEdge::Top => PhysicalPosition::new(
+            expanded_position.x,
+            work_area.y - bounds.height as i32 + strip,
+        ),
+    }
 }
 
 fn init_database(db_path: &Path) -> Result<(), String> {
@@ -107,6 +269,8 @@ fn init_database(db_path: &Path) -> Result<(), String> {
                 y INTEGER NOT NULL,
                 width INTEGER NOT NULL,
                 height INTEGER NOT NULL,
+                always_on_top INTEGER NOT NULL DEFAULT 0,
+                dock_edge TEXT,
                 updated_at INTEGER NOT NULL
             );
 
@@ -137,7 +301,40 @@ fn init_database(db_path: &Path) -> Result<(), String> {
         )
         .map_err(|error| error.to_string())?;
 
+    ensure_window_state_schema(&connection)?;
     backfill_legacy_task_events(&connection)?;
+
+    Ok(())
+}
+
+fn ensure_window_state_schema(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(window_state)")
+        .map_err(|error| error.to_string())?;
+
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    let has_always_on_top = columns.iter().any(|column| column == "always_on_top");
+    let has_dock_edge = columns.iter().any(|column| column == "dock_edge");
+
+    if !has_always_on_top {
+        connection
+            .execute(
+                "ALTER TABLE window_state ADD COLUMN always_on_top INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    if !has_dock_edge {
+        connection
+            .execute("ALTER TABLE window_state ADD COLUMN dock_edge TEXT", [])
+            .map_err(|error| error.to_string())?;
+    }
 
     Ok(())
 }
@@ -499,20 +696,23 @@ fn is_valid_local_day(value: &str) -> bool {
             .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
 }
 
-fn load_window_state(db_path: &Path) -> Result<Option<WindowState>, String> {
-    let connection = connect(db_path)?;
-
+fn query_window_state(connection: &Connection, key: &str) -> Result<Option<WindowState>, String> {
     connection
         .query_row(
-            "SELECT x, y, width, height FROM window_state WHERE key = 'main'",
-            [],
+            "SELECT x, y, width, height, always_on_top, dock_edge FROM window_state WHERE key = ?1",
+            params![key],
             |row| {
+                let always_on_top: i64 = row.get(4)?;
+                let dock_edge: Option<String> = row.get(5)?;
                 Ok(WindowState {
-                    key: None,
+                    key: Some(key.to_string()),
                     x: row.get(0)?,
                     y: row.get(1)?,
                     width: row.get(2)?,
                     height: row.get(3)?,
+                    always_on_top: always_on_top == 1,
+                    dock_edge: parse_dock_edge(dock_edge.as_deref())
+                        .map(|edge| edge.as_str().to_string()),
                 })
             },
         )
@@ -520,8 +720,13 @@ fn load_window_state(db_path: &Path) -> Result<Option<WindowState>, String> {
         .map_err(|error| error.to_string())
 }
 
+fn load_main_window_state(db_path: &Path) -> Result<Option<WindowState>, String> {
+    let connection = connect(db_path)?;
+    query_window_state(&connection, "main")
+}
+
 fn restore_window_state(app: &tauri::App, db_path: &Path) -> Result<(), String> {
-    let Some(saved_state) = load_window_state(db_path)? else {
+    let Some(saved_state) = load_main_window_state(db_path)? else {
         return Ok(());
     };
 
@@ -532,8 +737,49 @@ fn restore_window_state(app: &tauri::App, db_path: &Path) -> Result<(), String> 
     window
         .set_size(PhysicalSize::new(saved_state.width, saved_state.height))
         .map_err(|error| error.to_string())?;
+
+    let saved_bounds = WindowBounds {
+        x: saved_state.x,
+        y: saved_state.y,
+        width: saved_state.width,
+        height: saved_state.height,
+    };
+    let center_x = saved_bounds.x as f64 + saved_bounds.width as f64 / 2.0;
+    let center_y = saved_bounds.y as f64 + saved_bounds.height as f64 / 2.0;
+    let mut monitor = window
+        .monitor_from_point(center_x, center_y)
+        .map_err(|error| error.to_string())?;
+
+    if monitor.is_none() {
+        monitor = window
+            .current_monitor()
+            .map_err(|error| error.to_string())?;
+    }
+
+    if monitor.is_none() {
+        monitor = window
+            .primary_monitor()
+            .map_err(|error| error.to_string())?;
+    }
+
+    let restored_position = if let Some(monitor) = monitor {
+        let work_area = monitor_work_area(&monitor);
+
+        if let Some(edge) = parse_dock_edge(saved_state.dock_edge.as_deref()) {
+            let expanded_position = dock_expanded_position(edge, saved_bounds, work_area);
+            dock_collapsed_position(edge, expanded_position, saved_bounds, work_area)
+        } else {
+            clamp_to_work_area(saved_bounds, work_area)
+        }
+    } else {
+        PhysicalPosition::new(saved_state.x, saved_state.y)
+    };
+
     window
-        .set_position(PhysicalPosition::new(saved_state.x, saved_state.y))
+        .set_position(restored_position)
+        .map_err(|error| error.to_string())?;
+    window
+        .set_always_on_top(saved_state.always_on_top)
         .map_err(|error| error.to_string())?;
 
     Ok(())
@@ -789,7 +1035,11 @@ fn update_task_title(
             SET title = ?1, updated_at = ?2
             WHERE id = ?3
             ",
-            params![&updated_task.title, updated_task.updated_at, &updated_task.id],
+            params![
+                &updated_task.title,
+                updated_task.updated_at,
+                &updated_task.id
+            ],
         )
         .map_err(|error| error.to_string())?;
 
@@ -1033,24 +1283,60 @@ fn debug_log(label: String, message: String, metadata: Option<Value>) {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn primary_mouse_virtual_key() -> i32 {
+    let is_swapped = unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0;
+
+    if is_swapped {
+        VK_RBUTTON
+    } else {
+        VK_LBUTTON
+    }
+}
+
 #[tauri::command]
-fn save_window_state(
-    window_state: WindowState,
+fn is_primary_mouse_button_down() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        let state = unsafe { GetAsyncKeyState(primary_mouse_virtual_key()) } as u16;
+        return (state & 0x8000) != 0;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
+#[tauri::command]
+fn get_window_state(
+    key: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<Option<WindowState>, String> {
+    let connection = connect(&state.db_path)?;
+    let key = clean_or_default(key, "main");
+
+    query_window_state(&connection, &key)
+}
+
+#[tauri::command]
+fn save_window_state(window_state: WindowState, state: State<'_, AppState>) -> Result<(), String> {
     let connection = connect(&state.db_path)?;
     let key = clean_or_default(window_state.key, "main");
+    let dock_edge = normalize_dock_edge(window_state.dock_edge)?;
 
     connection
         .execute(
             "
-            INSERT INTO window_state (key, x, y, width, height, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            INSERT INTO window_state (key, x, y, width, height, always_on_top, dock_edge, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
             ON CONFLICT(key) DO UPDATE SET
                 x = excluded.x,
                 y = excluded.y,
                 width = excluded.width,
                 height = excluded.height,
+                always_on_top = excluded.always_on_top,
+                dock_edge = excluded.dock_edge,
                 updated_at = excluded.updated_at
             ",
             params![
@@ -1059,12 +1345,91 @@ fn save_window_state(
                 window_state.y,
                 window_state.width,
                 window_state.height,
+                window_state.always_on_top as i64,
+                dock_edge,
                 now_ms()
             ],
         )
         .map_err(|error| error.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn work_area() -> WorkArea {
+        WorkArea {
+            x: -1280,
+            y: 0,
+            width: 1280,
+            height: 900,
+            scale_factor: 1.25,
+        }
+    }
+
+    #[test]
+    fn clamp_to_work_area_keeps_normal_window_visible() {
+        let position = clamp_to_work_area(
+            WindowBounds {
+                x: -4000,
+                y: 1200,
+                width: 420,
+                height: 560,
+            },
+            work_area(),
+        );
+
+        assert_eq!(position.x, -1280);
+        assert_eq!(position.y, 340);
+    }
+
+    #[test]
+    fn right_dock_collapses_to_visible_strip() {
+        let bounds = WindowBounds {
+            x: -500,
+            y: 20,
+            width: 420,
+            height: 560,
+        };
+        let work_area = work_area();
+        let expanded = dock_expanded_position(DockEdge::Right, bounds, work_area);
+        let collapsed = dock_collapsed_position(DockEdge::Right, expanded, bounds, work_area);
+
+        assert_eq!(expanded.x, -420);
+        assert_eq!(expanded.y, 20);
+        assert_eq!(collapsed.x, -18);
+        assert_eq!(collapsed.y, 20);
+    }
+
+    #[test]
+    fn oversized_left_dock_still_exposes_strip() {
+        let bounds = WindowBounds {
+            x: -1280,
+            y: 0,
+            width: 1600,
+            height: 1000,
+        };
+        let work_area = work_area();
+        let expanded = dock_expanded_position(DockEdge::Left, bounds, work_area);
+        let collapsed = dock_collapsed_position(DockEdge::Left, expanded, bounds, work_area);
+
+        assert_eq!(expanded.x, -1280);
+        assert_eq!(expanded.y, 0);
+        assert_eq!(collapsed.x, -2862);
+        assert_eq!(collapsed.y, 0);
+    }
+
+    #[test]
+    fn invalid_dock_edge_is_rejected_for_saves() {
+        assert!(normalize_dock_edge(Some("bottom".to_string())).is_err());
+        assert_eq!(
+            normalize_dock_edge(Some(" top ".to_string())).unwrap(),
+            Some("top".to_string())
+        );
+        assert_eq!(normalize_dock_edge(None).unwrap(), None);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1088,6 +1453,8 @@ pub fn run() {
             list_completion_day_stats,
             list_user_events,
             debug_log,
+            is_primary_mouse_button_down,
+            get_window_state,
             save_window_state
         ])
         .run(tauri::generate_context!())

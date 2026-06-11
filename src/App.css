@@ -34,6 +34,7 @@ button {
 .shell {
   width: 100vw;
   height: 100vh;
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -42,6 +43,279 @@ button {
     #fff6a5;
   border: 1px solid rgba(96, 91, 45, 0.22);
   box-shadow: 0 16px 48px rgba(32, 37, 32, 0.22);
+}
+
+.edge-peek-handle {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(47, 158, 143, 0.88), rgba(37, 135, 122, 0.92));
+  box-shadow: 0 0 16px rgba(47, 158, 143, 0.26);
+  opacity: 0;
+}
+
+.edge-dockedCollapsed .edge-peek-handle,
+.edge-animating .edge-peek-handle {
+  opacity: 0.86;
+}
+
+.edge-peek-handle.edge-left {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.edge-peek-handle.edge-right {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.edge-peek-handle.edge-top {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.edge-snap-preview-band {
+  position: absolute;
+  z-index: 9;
+  pointer-events: none;
+  background: rgba(36, 155, 139, 0.86);
+}
+
+.edge-snap-preview-band.edge-left {
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 8px;
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(90deg, rgba(27, 137, 122, 0.98), rgba(76, 204, 184, 0.42));
+  box-shadow: 6px 0 18px rgba(27, 137, 122, 0.26);
+  transform-origin: left center;
+  animation: edge-snap-pulse-x 720ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.edge-snap-preview-band.edge-right {
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  width: 8px;
+  border-radius: 8px 0 0 8px;
+  background: linear-gradient(270deg, rgba(27, 137, 122, 0.98), rgba(76, 204, 184, 0.42));
+  box-shadow: -6px 0 18px rgba(27, 137, 122, 0.26);
+  transform-origin: right center;
+  animation: edge-snap-pulse-x 720ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.edge-snap-preview-band.edge-top {
+  top: 0;
+  right: 8px;
+  left: 8px;
+  height: 8px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(180deg, rgba(27, 137, 122, 0.98), rgba(76, 204, 184, 0.42));
+  box-shadow: 0 6px 18px rgba(27, 137, 122, 0.24);
+  transform-origin: center top;
+  animation: edge-snap-pulse-y 720ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes edge-snap-pulse-x {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: scaleX(0.72);
+  }
+
+  50% {
+    opacity: 0.98;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes edge-snap-pulse-y {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: scaleY(0.72);
+  }
+
+  50% {
+    opacity: 0.98;
+    transform: scaleY(1);
+  }
+}
+
+.edge-dock-success-band {
+  position: absolute;
+  z-index: 11;
+  pointer-events: none;
+  overflow: visible;
+  background: rgba(20, 139, 124, 0.96);
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.edge-dock-success-band::after {
+  position: absolute;
+  display: block;
+  content: "";
+  background: rgba(73, 211, 190, 0.22);
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.edge-dock-success-band.edge-left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 8px 0 22px rgba(20, 139, 124, 0.34);
+  transform-origin: left center;
+  animation: edge-dock-success-flash-x 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.edge-dock-success-band.edge-left::after {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 46px;
+  border-radius: 0 12px 12px 0;
+  transform-origin: left center;
+  animation: edge-dock-success-wave-x 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.edge-dock-success-band.edge-right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  border-radius: 8px 0 0 8px;
+  box-shadow: -8px 0 22px rgba(20, 139, 124, 0.34);
+  transform-origin: right center;
+  animation: edge-dock-success-flash-x 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.edge-dock-success-band.edge-right::after {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 46px;
+  border-radius: 12px 0 0 12px;
+  transform-origin: right center;
+  animation: edge-dock-success-wave-x 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.edge-dock-success-band.edge-top {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 10px;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 22px rgba(20, 139, 124, 0.32);
+  transform-origin: center top;
+  animation: edge-dock-success-flash-y 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.edge-dock-success-band.edge-top::after {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 46px;
+  border-radius: 0 0 12px 12px;
+  transform-origin: center top;
+  animation: edge-dock-success-wave-y 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes edge-dock-success-flash-x {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.48);
+  }
+
+  18% {
+    opacity: 1;
+    transform: scaleX(1.18);
+  }
+
+  54% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(0.86);
+  }
+}
+
+@keyframes edge-dock-success-flash-y {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.48);
+  }
+
+  18% {
+    opacity: 1;
+    transform: scaleY(1.18);
+  }
+
+  54% {
+    opacity: 0.9;
+    transform: scaleY(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleY(0.86);
+  }
+}
+
+@keyframes edge-dock-success-wave-x {
+  0% {
+    opacity: 0.34;
+    transform: scaleX(0.1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes edge-dock-success-wave-y {
+  0% {
+    opacity: 0.34;
+    transform: scaleY(0.1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-snap-preview-band {
+    opacity: 0.78;
+    animation: none;
+  }
+
+  .edge-dock-success-band {
+    opacity: 0.82;
+    animation: none;
+  }
+
+  .edge-dock-success-band::after {
+    display: none;
+  }
 }
 
 .titlebar {
@@ -106,6 +380,16 @@ button {
 .icon-button:hover {
   color: #25302c;
   background: rgba(64, 73, 48, 0.1);
+}
+
+.icon-button.active {
+  color: #ffffff;
+  background: #2f9e8f;
+}
+
+.icon-button.active:hover {
+  color: #ffffff;
+  background: #25877a;
 }
 
 .icon-button.danger:hover {

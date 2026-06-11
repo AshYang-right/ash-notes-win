@@ -26,6 +26,8 @@ AshNotes is a Windows desktop sticky-note todo app built with Tauri, React, Type
 - `dev-log/2026-06-09-completed-task-reorder-animation.md`: implementation notes for completed-task tail ordering and FLIP animation.
 - `dev-log/2026-06-09-same-day-reversible-completion-stats.md`: implementation notes for same-day reversible completion stats.
 - `dev-log/2026-06-09-development-verification-workflow.md`: implementation notes for the write, compile, run, test workflow.
+- `dev-log/2026-06-09-window-always-on-top-toggle.md`: implementation notes for the main-window pin-on-top toggle.
+- `dev-log/2026-06-10-edge-docking-auto-hide.md`: implementation notes for QQ-style main-window edge docking and auto-hide.
 
 ## Decisions
 

@@ -38,5 +38,6 @@ If no new event is needed, record that conclusion with the reason. A feature wit
 
 - Task lifecycle: `task_created`, `task_completed`, `task_uncompleted`, `task_title_updated`, `task_deleted`.
 - Task UI: `task_draft_focused`, `task_draft_changed`, `task_create_submitted`, `task_checkbox_clicked`, `task_title_edit_started`, `task_title_edit_submitted`, `task_title_edit_cancelled`, `task_title_edit_failed`, `task_context_menu_opened`, `task_delete_clicked`.
+- Window UI: `window_always_on_top_toggled`, `window_always_on_top_toggle_failed`, `window_edge_docked`, `window_edge_expanded`, `window_edge_collapsed`, `window_edge_undocked`, `window_edge_animation_failed`.
 - Stats UI: `stats_entry_clicked`, `stats_window_opened`, `stats_window_focused`, `stats_window_closed`, `stats_heatmap_viewed`, `stats_heatmap_day_hovered`, `stats_heatmap_day_selected`.
 - Failure outcomes should use explicit failure events or `success: false` metadata where useful for diagnosis.

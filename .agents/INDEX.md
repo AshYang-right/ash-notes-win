@@ -25,6 +25,8 @@ Use this directory as the maintainable context layer for Codex and other coding 
 - `../docs/dev-log/2026-06-09-completed-task-reorder-animation.md`: implementation log for completed-task tail ordering and FLIP animation.
 - `../docs/dev-log/2026-06-09-same-day-reversible-completion-stats.md`: implementation log for same-day reversible completion stats.
 - `../docs/dev-log/2026-06-09-development-verification-workflow.md`: implementation log for the write, compile, run, test workflow.
+- `../docs/dev-log/2026-06-09-window-always-on-top-toggle.md`: implementation log for the main-window pin-on-top toggle.
+- `../docs/dev-log/2026-06-10-edge-docking-auto-hide.md`: implementation log for QQ-style main-window edge docking and auto-hide.
 - `../docs/decisions/0001-ai-context-maintenance.md`: decision record for maintaining prompt engineering as project infrastructure.
 - `../docs/decisions/0002-zero-friction-onboarding.md`: decision record for clone-and-work development.
 - `../docs/decisions/0003-user-data-analytics.md`: decision record for local analytics and sub-agent analytics review.

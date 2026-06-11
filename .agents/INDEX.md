@@ -6,6 +6,7 @@ Use this directory as the maintainable context layer for Codex and other coding 
 
 - `../AGENTS.md`: root-level operating guide that Codex should read first.
 - `rules/engineering.md`: durable engineering rules for AshNotes.
+- `rules/git-branch-hygiene.md`: branch naming, branch descriptions, and commit/push scope rules.
 - `rules/onboarding.md`: clone-and-work onboarding rules.
 - `rules/prompt-engineering-maintenance.md`: how every developer keeps agent context current.
 - `rules/user-data-analytics.md`: mandatory local analytics and sub-agent review rules.
@@ -41,11 +42,12 @@ Use this directory as the maintainable context layer for Codex and other coding 
 1. Read `AGENTS.md` for project shape, commands, and maintenance expectations.
 2. Read `rules/onboarding.md` before changing setup, commands, prerequisites, or verification.
 3. Read `rules/engineering.md` before touching architecture, storage, or UI behavior.
-4. Read `rules/user-data-analytics.md` before planning or implementing features, interactions, state transitions, or commands.
-5. Read `rules/prompt-engineering-maintenance.md` before changing project rules, skills, docs, or workflows.
-6. Use `skills/ashnotes-vibecoding/SKILL.md` when planning or implementing AshNotes features.
-7. Use `skills/zero-friction-onboarding/SKILL.md` when changing setup or contributor workflow.
-8. Check `docs/dev-log/` and `docs/decisions/` for prior decisions before changing product direction.
+4. Read `rules/git-branch-hygiene.md` before committing, pushing, or creating branches.
+5. Read `rules/user-data-analytics.md` before planning or implementing features, interactions, state transitions, or commands.
+6. Read `rules/prompt-engineering-maintenance.md` before changing project rules, skills, docs, or workflows.
+7. Use `skills/ashnotes-vibecoding/SKILL.md` when planning or implementing AshNotes features.
+8. Use `skills/zero-friction-onboarding/SKILL.md` when changing setup or contributor workflow.
+9. Check `docs/dev-log/` and `docs/decisions/` for prior decisions before changing product direction.
 
 ## Maintenance Rule
 

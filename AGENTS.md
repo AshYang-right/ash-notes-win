@@ -78,6 +78,7 @@ Use `npm.cmd` on Windows to avoid PowerShell execution-policy issues with `npm.p
 - Project docs index: `docs/INDEX.md`
 - Onboarding guide: `docs/onboarding.md`
 - Onboarding rule: `.agents/rules/onboarding.md`
+- Git branch hygiene rule: `.agents/rules/git-branch-hygiene.md`
 - User data analytics rule: `.agents/rules/user-data-analytics.md`
 - Onboarding skill: `.agents/skills/zero-friction-onboarding/SKILL.md`
 - Prompt maintenance rule: `.agents/rules/prompt-engineering-maintenance.md`

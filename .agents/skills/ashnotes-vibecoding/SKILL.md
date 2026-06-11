@@ -17,7 +17,8 @@ Help AshNotes evolve without losing the original product feel: a small, reliable
 7. Inspect the files touched by the request before editing.
 8. Make the smallest coherent change that satisfies the request.
 9. Run the verification command that matches the changed surface.
-10. Add or update a dev-log entry when the change creates a durable decision.
+10. If a successful build/check occurs, check whether AshNotes is already running and restart only with explicit current-session authorization.
+11. Add or update a dev-log entry when the change creates a durable decision.
 
 ## Current Architecture
 
@@ -31,9 +32,18 @@ Help AshNotes evolve without losing the original product feel: a small, reliable
 - Frontend check: `npm.cmd run build`
 - Full project check: `npm.cmd run check`
 - Environment doctor: `npm.cmd run doctor`
-- Desktop dev run: `npm.cmd run tauri dev`
+- Agent context check: `npm.cmd run agent:check`
+- Desktop dev run: `npm.cmd run app:dev`
 - Rust check: `cargo check` from `src-tauri/`
-- Release compile check: `npm.cmd run tauri -- build --no-bundle`
+- Release compile check: `npm.cmd run app:build`
+
+## Write Compile Run Test Loop
+
+- Write: classify the changed surface first: frontend, Rust/Tauri command, SQLite/analytics, docs/agent context, or release behavior.
+- Compile: run `npm.cmd run build` for UI/frontend changes; add `cargo check` from `src-tauri/` for Tauri, SQLite, analytics, or Rust changes.
+- Run: use `npm.cmd run app:dev` for manual desktop testing. Do not silently restart a live app window.
+- Test: use `npm.cmd run check` as the pre-publish path when prerequisites are installed. If it fails because Rust/Cargo is unavailable, report that blocker and keep the successful narrower checks in the final summary.
+- Context: run `npm.cmd run agent:check` whenever `.agents/`, `AGENTS.md`, durable docs, or workflow guidance changed.
 
 ## Decision Heuristics
 

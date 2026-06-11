@@ -26,6 +26,13 @@ Prerequisites: Git, Node.js LTS, Rust stable, and a Windows desktop environment.
 
 Use `npm.cmd` on Windows to avoid PowerShell execution-policy issues with `npm.ps1`.
 
+Recommended loop:
+
+1. Write the change and note whether it touches frontend, Rust/Tauri, SQLite/analytics, docs, or agent context.
+2. Compile with `npm.cmd run build`; add `cargo check` from `src-tauri/` for Rust/Tauri/SQLite changes.
+3. Run the desktop app with `npm.cmd run app:dev` for manual checks.
+4. Test before publishing with `npm.cmd run check` when Rust/Cargo prerequisites are installed.
+
 ## Project Context
 
 - Agent guide: `AGENTS.md`

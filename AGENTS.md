@@ -19,6 +19,7 @@ This file is the first stop for Codex-style development in AshNotes.
 - Store durable local app data through the Tauri backend, not browser-only storage.
 - Treat local user analytics as product infrastructure: new or changed features need a sub-agent analytics review and durable SQLite events when user behavior or state transitions change.
 - Prefer small, inspectable changes over broad rewrites.
+- After successful development compile/build work, check whether the AshNotes desktop app is already running. If it is running, offer or perform a restart only when the user has explicitly authorized restarting the live app in the current conversation; avoid silently closing a window that may contain unsaved draft text.
 - Update `docs/onboarding.md` and `.agents/rules/onboarding.md` when setup, prerequisites, commands, or verification workflows change.
 - Update `docs/dev-log/` when a decision changes product direction, persistence, architecture, or release behavior.
 - Update `docs/decisions/` when a change records a durable architectural or process decision.
@@ -61,12 +62,23 @@ Do not turn `.agents/` into a scratchpad. Skip prompt-engineering updates for pu
 
 Use `npm.cmd` on Windows to avoid PowerShell execution-policy issues with `npm.ps1`.
 
+## Development Flow
+
+- Before editing, identify the touched surface: frontend UI, Tauri/Rust command, SQLite schema/query, analytics event, docs, or agent context.
+- While editing, keep React UI state separate from durable Tauri/SQLite state and preserve compact sticky-note interactions.
+- For frontend-only changes, run `npm.cmd run build`.
+- For Tauri, SQLite, analytics, or Rust command changes, run `npm.cmd run build` and `cargo check` from `src-tauri/`; if Rust/Cargo is missing, record that blocker and run `npm.cmd run doctor`.
+- For docs, rules, skills, templates, or onboarding changes, run `npm.cmd run agent:check`.
+- For end-to-end confidence before publishing, run `npm.cmd run check`; if it stops at a missing prerequisite, report the exact missing tool and which earlier checks already passed.
+- To manually run the desktop app during development, use `npm.cmd run app:dev`. After any successful build/check, inspect whether AshNotes is already running and only restart it with explicit user authorization in the current conversation.
+
 ## Navigation
 
 - Agent index: `.agents/INDEX.md`
 - Project docs index: `docs/INDEX.md`
 - Onboarding guide: `docs/onboarding.md`
 - Onboarding rule: `.agents/rules/onboarding.md`
+- Git branch hygiene rule: `.agents/rules/git-branch-hygiene.md`
 - User data analytics rule: `.agents/rules/user-data-analytics.md`
 - Onboarding skill: `.agents/skills/zero-friction-onboarding/SKILL.md`
 - Prompt maintenance rule: `.agents/rules/prompt-engineering-maintenance.md`

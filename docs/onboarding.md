@@ -16,9 +16,19 @@ Use `npm.cmd` on Windows to avoid PowerShell execution-policy issues with `npm.p
 ## Prerequisites
 
 - Git
-- Node.js LTS, including npm
-- Rust stable, including `rustc` and `cargo`
+- A supported Node.js LTS release with npm; use Node 22.12+ or 24 LTS
+- Rust stable with the MSVC toolchain, including `rustc` and `cargo`
 - Windows desktop environment for running the Tauri app
+- Microsoft C++ Build Tools with Desktop development with C++ and a Windows SDK
+- Microsoft Edge WebView2 Runtime
+
+See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+Dependency downloads need network access. For a clean lockfile-based JavaScript
+installation, use `npm.cmd ci`; `setup` currently uses `npm install`.
+
+The Vite-only preview cannot replace Tauri for persistence and window features.
+The current desktop hooks use `npm.cmd`; Linux and macOS desktop builds are not
+verified.
 
 `setup` installs JavaScript dependencies and verifies the agent context. If system prerequisites such as Rust are missing, it will finish the parts it can and then print the shortest fix.
 

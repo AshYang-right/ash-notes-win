@@ -12,11 +12,48 @@ dist
 dist-ssr
 *.local
 
+# Local secrets and signing material (examples may be committed)
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+
+# Rust/Tauri outputs; preserve the application's Cargo.lock
+/target/
+/src-tauri/target/
+/src-tauri/gen/
+
+# Local task databases, event histories, and backups
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.bak
+
+# Local packaging and diagnostic artifacts
+/release/
+/releases/
+/coverage/
+/test-results/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.suo
 *.ntvs*
 *.njsproj

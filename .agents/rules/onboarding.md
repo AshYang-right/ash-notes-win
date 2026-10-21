@@ -15,6 +15,11 @@ Any developer or coding agent should be able to clone the repository and start p
 - `npm.cmd run doctor` must diagnose missing local prerequisites.
 - `npm.cmd run check` must run the standard local verification path.
 
+Document the Windows prerequisites consistently in README and onboarding:
+supported Node.js LTS (Node 22.12+ or 24 LTS), Rust stable MSVC, Microsoft C++ Build
+Tools with a Windows SDK, and WebView2. Distinguish Vite-only frontend builds from
+verification of Tauri desktop behavior.
+
 ## Maintenance Triggers
 
 Update onboarding assets when a change:
